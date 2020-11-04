@@ -13,14 +13,41 @@ import org.apache.sshd.common.channel.Channel;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 
 public class Jschexecute {
-    public static void main(String[] args) {
+    private static String username;
+    private static String password;
+    private static String host;
+    private static String command;
+    public static void main(String[] args) throws Exception {
+        byte data[] = new byte[50];
 
+        System.out.print("Enter username: ");
+        System.in.read(data);
+        username = new String(data, StandardCharsets.UTF_8).trim();
+
+        System.out.print("Password: ");
+        System.in.read(data);
+        password = new String(data, StandardCharsets.UTF_8).trim();
+
+        System.out.print("Enter host: ");
+        System.in.read(data);
+        host = new String(data, StandardCharsets.UTF_8).trim();
+
+        System.out.println("Enter command:");
+        System.in.read(data);
+        command = new String(data, StandardCharsets.UTF_8).trim();
+
+        listFolderStructure1(username, password, host, 22, command);
+        //listFolderStructure2(username, password, host, 22, 30, command);
     }
 
+    /*
+      JSch implementation
+     */
     public static void listFolderStructure1(String username, String password,
                                            String host, int port, String command) throws Exception {
 
@@ -28,6 +55,7 @@ public class Jschexecute {
         ChannelExec channel = null;
 
         try {
+            System.out.println(host);
             session = new JSch().getSession(username, host, port);
             session.setPassword(password);
             session.setConfig("StrictHostKeyChecking", "no");
@@ -45,6 +73,9 @@ public class Jschexecute {
 
             String responseString = new String(responseStream.toByteArray());
             System.out.println(responseString);
+        } catch (Exception e) {
+            System.out.println(e);
+
         } finally {
             if (session != null) {
                 session.disconnect();
@@ -55,6 +86,9 @@ public class Jschexecute {
         }
     }
 
+    /*
+      Apache MINA SSHD implementation
+     */
     public static void listFolderStructure2(String username, String password,
                                             String host,
                                             int port,

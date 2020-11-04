@@ -23,10 +23,24 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <jsch.version>0.1.55</jsch.version>
+        <mina.version>2.5.1</mina.version>
         <junit.version>4.13.1</junit.version>
     </properties>
 
     <dependencies>
+
+        <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch</artifactId>
+            <version>${jsch.version}</version>
+        </dependency>
+
+       <dependency>
+           <groupId>org.apache.sshd</groupId>
+           <artifactId>sshd-core</artifactId>
+           <version>${mina.version}</version>
+       </dependency>
 
         <dependency>
             <groupId>junit</groupId>
@@ -118,6 +132,7 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/*.*</exclude>
+                                        <exclude>META-INF/*</exclude>
                                         <exclude>about.html</exclude>
                                         <exclude>module-info.class</exclude>
                                     </excludes>

@@ -1,176 +1,94 @@
-import java.awt.*;
-import javax.swing.*;
-import java.io.*;
+package main.java.jschexecute;
+
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.channel.ClientChannel;
+import org.apache.sshd.client.channel.ClientChannelEvent;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.channel.Channel;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.EnumSet;
+import java.util.concurrent.TimeUnit;
 
 public class Jschexecute {
-    public static void main(String[] arg){
-        try{
-            JSch jsch=new JSch();
+    public static void main(String[] args) {
 
-            String host=null;
-            if(arg.length>0){
-                host=arg[0];
-            }
-            else{
-                host=JOptionPane.showInputDialog("Enter username@hostname",
-                        System.getProperty("user.name")+
-                                "@localhost");
-            }
-            String user=host.substring(0, host.indexOf('@'));
-            host=host.substring(host.indexOf('@')+1);
+    }
 
-            Session session=jsch.getSession(user, host, 22);
+    public static void listFolderStructure1(String username, String password,
+                                           String host, int port, String command) throws Exception {
 
-      /*
-      String xhost="127.0.0.1";
-      int xport=0;
-      String display=JOptionPane.showInputDialog("Enter display name",
-                                                 xhost+":"+xport);
-      xhost=display.substring(0, display.indexOf(':'));
-      xport=Integer.parseInt(display.substring(display.indexOf(':')+1));
-      session.setX11Host(xhost);
-      session.setX11Port(xport+6000);
-      */
+        Session session = null;
+        ChannelExec channel = null;
 
-            // username and password will be given via UserInfo interface.
-            UserInfo ui=new MyUserInfo();
-            session.setUserInfo(ui);
+        try {
+            session = new JSch().getSession(username, host, port);
+            session.setPassword(password);
+            session.setConfig("StrictHostKeyChecking", "no");
             session.connect();
 
-            String command=JOptionPane.showInputDialog("Enter command",
-                    "set|grep SSH");
-
-            Channel channel=session.openChannel("exec");
-            ((ChannelExec)channel).setCommand(command);
-
-            // X Forwarding
-            // channel.setXForwarding(true);
-
-            //channel.setInputStream(System.in);
-            channel.setInputStream(null);
-
-            //channel.setOutputStream(System.out);
-
-            //FileOutputStream fos=new FileOutputStream("/tmp/stderr");
-            //((ChannelExec)channel).setErrStream(fos);
-            ((ChannelExec)channel).setErrStream(System.err);
-
-            InputStream in=channel.getInputStream();
-
+            channel = (ChannelExec) session.openChannel("exec");
+            channel.setCommand(command);
+            ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
+            channel.setOutputStream(responseStream);
             channel.connect();
 
-            byte[] tmp=new byte[1024];
-            while(true){
-                while(in.available()>0){
-                    int i=in.read(tmp, 0, 1024);
-                    if(i<0)break;
-                    System.out.print(new String(tmp, 0, i));
-                }
-                if(channel.isClosed()){
-                    if(in.available()>0) continue;
-                    System.out.println("exit-status: "+channel.getExitStatus());
-                    break;
-                }
-                try{Thread.sleep(1000);}catch(Exception ee){}
+            while (channel.isConnected()) {
+                Thread.sleep(100);
             }
-            channel.disconnect();
-            session.disconnect();
-        }
-        catch(Exception e){
-            System.out.println(e);
+
+            String responseString = new String(responseStream.toByteArray());
+            System.out.println(responseString);
+        } finally {
+            if (session != null) {
+                session.disconnect();
+            }
+            if (channel != null) {
+                channel.disconnect();
+            }
         }
     }
 
-    public static class MyUserInfo implements UserInfo, UIKeyboardInteractive{
-        public String getPassword(){ return passwd; }
-        public boolean promptYesNo(String str){
-            Object[] options={ "yes", "no" };
-            int foo=JOptionPane.showOptionDialog(null,
-                    str,
-                    "Warning",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.WARNING_MESSAGE,
-                    null, options, options[0]);
-            return foo==0;
-        }
+    public static void listFolderStructure2(String username, String password,
+                                            String host,
+                                            int port,
+                                            long defaultTimeoutSeconds,
+                                            String command) throws IOException, IOException {
 
-        String passwd;
-        JTextField passwordField=(JTextField)new JPasswordField(20);
+        SshClient client = SshClient.setUpDefaultClient();
+        client.start();
 
-        public String getPassphrase(){ return null; }
-        public boolean promptPassphrase(String message){ return true; }
-        public boolean promptPassword(String message){
-            Object[] ob={passwordField};
-            int result=
-                    JOptionPane.showConfirmDialog(null, ob, message,
-                            JOptionPane.OK_CANCEL_OPTION);
-            if(result==JOptionPane.OK_OPTION){
-                passwd=passwordField.getText();
-                return true;
-            }
-            else{
-                return false;
-            }
-        }
-        public void showMessage(String message){
-            JOptionPane.showMessageDialog(null, message);
-        }
-        final GridBagConstraints gbc =
-                new GridBagConstraints(0,0,1,1,1,1,
-                        GridBagConstraints.NORTHWEST,
-                        GridBagConstraints.NONE,
-                        new Insets(0,0,0,0),0,0);
-        private Container panel;
-        public String[] promptKeyboardInteractive(String destination,
-                                                  String name,
-                                                  String instruction,
-                                                  String[] prompt,
-                                                  boolean[] echo){
-            panel = new JPanel();
-            panel.setLayout(new GridBagLayout());
+        try (ClientSession session = client.connect(username, host, port)
+                .verify(defaultTimeoutSeconds, TimeUnit.SECONDS).getSession()) {
+            session.addPasswordIdentity(password);
+            session.auth().verify(defaultTimeoutSeconds, TimeUnit.SECONDS);
 
-            gbc.weightx = 1.0;
-            gbc.gridwidth = GridBagConstraints.REMAINDER;
-            gbc.gridx = 0;
-            panel.add(new JLabel(instruction), gbc);
-            gbc.gridy++;
+            try (ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
+                 ClientChannel channel = session.createChannel(Channel.CHANNEL_SHELL)) {
+                channel.setOut(responseStream);
+                try {
+                    channel.open().verify(defaultTimeoutSeconds, TimeUnit.SECONDS);
+                    try (OutputStream pipedIn = channel.getInvertedIn()) {
+                        pipedIn.write(command.getBytes());
+                        pipedIn.flush();
+                    }
 
-            gbc.gridwidth = GridBagConstraints.RELATIVE;
-
-            JTextField[] texts=new JTextField[prompt.length];
-            for(int i=0; i<prompt.length; i++){
-                gbc.fill = GridBagConstraints.NONE;
-                gbc.gridx = 0;
-                gbc.weightx = 1;
-                panel.add(new JLabel(prompt[i]),gbc);
-
-                gbc.gridx = 1;
-                gbc.fill = GridBagConstraints.HORIZONTAL;
-                gbc.weighty = 1;
-                if(echo[i]){
-                    texts[i]=new JTextField(20);
+                    channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED),
+                            TimeUnit.SECONDS.toMillis(defaultTimeoutSeconds));
+                    String responseString = new String(responseStream.toByteArray());
+                    System.out.println(responseString);
+                } finally {
+                    channel.close(false);
                 }
-                else{
-                    texts[i]=new JPasswordField(20);
-                }
-                panel.add(texts[i], gbc);
-                gbc.gridy++;
             }
-
-            if(JOptionPane.showConfirmDialog(null, panel,
-                    destination+": "+name,
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.QUESTION_MESSAGE)
-                    ==JOptionPane.OK_OPTION){
-                String[] response=new String[prompt.length];
-                for(int i=0; i<prompt.length; i++){
-                    response[i]=texts[i].getText();
-                }
-                return response;
-            }
-            else{
-                return null;  // cancel
-            }
+        } finally {
+            client.stop();
         }
     }
 }
